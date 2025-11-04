@@ -23,7 +23,7 @@ If you find this project helpful, don’t forget to ⭐ star the [repository](ht
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/3choff/mcp-chatbot.git
+   git clone https://github.com/Nugamoto/mcp-chatbot.git
    cd mcp-chatbot
    ```
 
@@ -35,10 +35,50 @@ If you find this project helpful, don’t forget to ⭐ star the [repository](ht
 
 3. **Set up environment variables:**
 
-   Create a `.env` file in the root directory and add your API key:
+   Create a `.env` file in the root directory and add your LLM API key and configuration.
+   Ensure this file is kept secure and not committed to version control.
 
+   The client supports multiple LLM providers. Configure the following environment variables based on your chosen provider:
+
+   - `LLM_PROVIDER`: Specify your LLM provider (e.g., `openai`, `groq`, `azure`, `ollama`). Defaults to `openai`.
+   - `LLM_MODEL`: (Optional) Specify the model to use. Defaults depend on the provider (e.g., `gpt-4o-mini` for OpenAI, `llama-3.1-70b-versatile` for Groq, `llama3.1` for Ollama).
+   - `OPENAI_API_KEY`: Your API key for OpenAI.
+   - `GROQ_API_KEY`: Your API key for Groq.
+   - `AZURE_OPENAI_API_KEY`: Your API key for Azure OpenAI.
+   - `AZURE_OPENAI_DEPLOYMENT`: Your deployment name for Azure OpenAI (e.g., `gpt-4o-mini`).
+   - `AZURE_OPENAI_API_VERSION`: (Optional) Azure API version. Defaults to `2024-08-01-preview`.
+   - `OLLAMA_API_KEY`: (Optional) Your API key for Ollama.
+   - `OPENAI_BASE_URL`: (Optional) Custom base URL for OpenAI. Defaults to `https://api.openai.com/v1`.
+   - `GROQ_BASE_URL`: (Optional) Custom base URL for Groq. Defaults to `https://api.groq.com/openai/v1`.
+   - `AZURE_OPENAI_BASE_URL`: (Optional) Custom base URL for Azure OpenAI.
+   - `OLLAMA_BASE_URL`: (Optional) Custom base URL for Ollama. Defaults to `http://localhost:11434/v1`.
+
+   Example for OpenAI:
    ```plaintext
-   LLM_API_KEY=your_api_key_here
+   LLM_PROVIDER=openai
+   OPENAI_API_KEY=your_openai_api_key_here
+   LLM_MODEL=gpt-4o-mini # Optional, will use default if not set
+   ```
+
+   Example for Groq:
+   ```plaintext
+   LLM_PROVIDER=groq
+   GROQ_API_KEY=your_groq_api_key_here
+   ```
+
+   Example for Azure OpenAI:
+   ```plaintext
+   LLM_PROVIDER=azure
+   AZURE_OPENAI_API_KEY=your_azure_api_key_here
+   AZURE_OPENAI_DEPLOYMENT=your_deployment_name
+   # AZURE_OPENAI_API_VERSION=2024-08-01-preview # Optional
+   ```
+
+   Example for Ollama:
+   ```plaintext
+   LLM_PROVIDER=ollama
+   OLLAMA_API_KEY=your_ollama_api_key_here # Optional
+   LLM_MODEL=llama3.1 # Optional, will use default if not set
    ```
 
 4. **Configure servers:**
