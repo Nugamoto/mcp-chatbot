@@ -17,17 +17,18 @@ class OpenAIProvider(BaseLLMProvider):
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
-        def build_payload(use_max_completion: bool) -> Dict[str, Any]:
+        def build_payload(use_max_completion: bool, include_temperature: bool = True) -> Dict[str, Any]:
             max_tokens = int(self.extra.get("max_tokens", 1024))
+            temp = float(self.extra.get("temperature", 0.7))
             payload: Dict[str, Any] = {
                 "messages": messages,
                 "model": self.model,
                 "top_p": 1,
                 "stream": False,
             }
-            # Reasoning models don't support temperature parameter at all
-            if not self._is_reasoning_model():
-                payload["temperature"] = 0.7
+            # Some models (gpt-5*, o1/o3) disallow custom temperature; omit it
+            if include_temperature and not self._disallows_custom_temperature():
+                payload["temperature"] = temp
             if use_max_completion:
                 payload["max_completion_tokens"] = max_tokens
             else:
@@ -36,7 +37,7 @@ class OpenAIProvider(BaseLLMProvider):
 
         # Heuristic: choose correct token parameter
         use_max_completion = self._requires_max_completion_tokens()
-        payload = build_payload(use_max_completion)
+        payload = build_payload(use_max_completion, include_temperature=True)
 
         try:
             response = retry_call(
@@ -46,17 +47,25 @@ class OpenAIProvider(BaseLLMProvider):
                 jitter=self.extra.get("jitter", 0.25),
                 exceptions=(requests.exceptions.RequestException,),
             )
-            # If request failed with 400 unsupported parameter, retry once toggling the parameter
+            # If request failed with 400 unsupported parameter/value, retry once adjusting payload
             if response.status_code == 400:
                 try:
                     err = response.json()
-                    msg = (err.get("error", {}) or {}).get("message", "")
-                    code = (err.get("error", {}) or {}).get("code", "")
+                    error_obj = (err.get("error", {}) or {})
+                    msg = error_obj.get("message", "")
+                    code = error_obj.get("code", "")
+                    param = error_obj.get("param", "")
                 except Exception:
-                    msg = ""; code = ""
+                    msg = ""; code = ""; param = ""
+                # Toggle token field if unsupported_parameter
                 if code == "unsupported_parameter" or "Unsupported parameter" in msg:
                     logging.warning("Retrying OpenAI call toggling token parameter due to unsupported parameter: %s", msg)
-                    payload = build_payload(not use_max_completion)
+                    payload = build_payload(not use_max_completion, include_temperature=True)
+                    response = requests.post(url, headers=headers, json=payload, timeout=60)
+                # Remove temperature if unsupported_value on temperature
+                elif code == "unsupported_value" and (param == "temperature" or "temperature" in msg.lower()):
+                    logging.warning("Retrying OpenAI call removing temperature due to unsupported value: %s", msg)
+                    payload = build_payload(use_max_completion, include_temperature=False)
                     response = requests.post(url, headers=headers, json=payload, timeout=60)
             response.raise_for_status()
             data = response.json()
