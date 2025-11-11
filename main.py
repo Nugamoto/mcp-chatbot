@@ -28,6 +28,7 @@ async def main() -> None:
         base_url=config.llm_base_url,
         model=config.llm_model,
         azure_api_version=config.llm_azure_api_version,
+        max_tokens=getattr(config, "max_tokens", 1024),
     )
 
     # Start chat session

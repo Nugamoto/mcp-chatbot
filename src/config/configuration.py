@@ -13,7 +13,15 @@ class Configuration:
         """Initialize configuration with environment variables."""
         self.load_env()
         # Provider selection: openai | groq | azure | ollama
-        self.provider = os.getenv("LLM_PROVIDER", "openai").strip().lower()
+        raw_provider = os.getenv("LLM_PROVIDER", "openai").strip().lower()
+        # Clean provider value - take only the first word if multiple are present
+        self.provider = raw_provider.split()[0].split(',')[0].split('#')[0]
+        
+        # Validate provider
+        valid_providers = ["openai", "groq", "azure", "ollama"]
+        if self.provider not in valid_providers:
+            self.provider = "openai"
+        
         # API key per provider
         self.api_key = (
             os.getenv("OPENAI_API_KEY") if self.provider == "openai"
@@ -36,6 +44,11 @@ class Configuration:
         )
         # Azure API version
         self.azure_api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-08-01-preview")
+        # Optional max tokens setting (applies to providers that support it)
+        try:
+            self.max_tokens = int(os.getenv("LLM_MAX_TOKENS", "1024"))
+        except ValueError:
+            self.max_tokens = 1024
 
     @staticmethod
     def _find_project_root() -> Path:
@@ -80,8 +93,21 @@ class Configuration:
     @property
     def llm_api_key(self) -> str:
         """Get the LLM API key."""
+        # Ollama typically doesn't require an API key
+        if self.provider == "ollama":
+            return self.api_key or ""
+        
         if not self.api_key or not self.api_key.strip():
-            raise ValueError(f"{self.provider.upper()}_API_KEY not found in environment variables")
+            env_var_name = (
+                "OPENAI_API_KEY" if self.provider == "openai"
+                else "GROQ_API_KEY" if self.provider == "groq"
+                else "AZURE_OPENAI_API_KEY" if self.provider == "azure"
+                else "OLLAMA_API_KEY"
+            )
+            raise ValueError(
+                f"API key not found. Please set {env_var_name} in your environment variables or .env file.\n"
+                f"Current provider: {self.provider}"
+            )
         return self.api_key.strip()
 
     @property

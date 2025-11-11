@@ -22,5 +22,14 @@ class BaseLLMProvider(ABC):
 
     def _is_reasoning_model(self) -> bool:
         """Check if the current model is a reasoning model (o1/o3 series)."""
-        reasoning_models = ["o1-mini", "o1-preview", "o3-mini", "o3-preview"]
+        reasoning_models = ["o1", "o1-mini", "o1-preview", "o3", "o3-mini", "o3-preview"]
         return any(r in (self.model or "").lower() for r in reasoning_models)
+
+    def _requires_max_completion_tokens(self) -> bool:
+        """Heuristic: models in the gpt-4o* and gpt-5* families and reasoning models
+        expect `max_completion_tokens` instead of `max_tokens`.
+        """
+        m = (self.model or "").lower().strip()
+        if self._is_reasoning_model():
+            return True
+        return m.startswith("gpt-4o") or m.startswith("gpt-5")

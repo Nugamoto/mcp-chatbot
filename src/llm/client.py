@@ -8,7 +8,7 @@ from src.utils.exceptions import ProviderError
 class LLMClient:
     """Manages communication with the LLM provider via a provider factory."""
 
-    def __init__(self, api_key: str, provider: str, base_url: str, model: str, azure_api_version: str = "") -> None:
+    def __init__(self, api_key: str, provider: str, base_url: str, model: str, azure_api_version: str = "", max_tokens: int = 1024) -> None:
         self.provider_name = (provider or "").strip().lower()
         # Create concrete provider implementation
         self.provider_impl = create_provider(
@@ -17,6 +17,7 @@ class LLMClient:
             base_url=(base_url or "").rstrip("/"),
             model=model,
             azure_api_version=azure_api_version or "2024-08-01-preview",
+            max_tokens=max_tokens,
         )
 
     def get_response(self, messages: List[Dict[str, str]]) -> str:
