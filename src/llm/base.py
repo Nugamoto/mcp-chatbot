@@ -33,3 +33,12 @@ class BaseLLMProvider(ABC):
         if self._is_reasoning_model():
             return True
         return m.startswith("gpt-4o") or m.startswith("gpt-5")
+
+    def _disallows_custom_temperature(self) -> bool:
+        """Heuristic: some models reject any non-default temperature.
+        - gpt-5* family currently only accepts the default temperature (1)
+        - reasoning models (o1/o3) also effectively ignore/forbid custom temps
+        Policy: when True, omit the `temperature` field from payloads.
+        """
+        m = (self.model or "").lower().strip()
+        return self._is_reasoning_model() or m.startswith("gpt-5")
