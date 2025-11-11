@@ -29,6 +29,7 @@ async def main() -> None:
         model=config.llm_model,
         azure_api_version=config.llm_azure_api_version,
         max_tokens=getattr(config, "max_tokens", 1024),
+        temperature=getattr(config, "temperature", 0.7),
     )
 
     # Start chat session
