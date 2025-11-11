@@ -49,6 +49,11 @@ class Configuration:
             self.max_tokens = int(os.getenv("LLM_MAX_TOKENS", "1024"))
         except ValueError:
             self.max_tokens = 1024
+        # Optional temperature (ignored for models that disallow custom temp)
+        try:
+            self.temperature = float(os.getenv("LLM_TEMPERATURE", "0.7"))
+        except ValueError:
+            self.temperature = 0.7
 
     @staticmethod
     def _find_project_root() -> Path:
