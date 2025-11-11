@@ -54,7 +54,7 @@ class Configuration:
 
     @staticmethod
     def load_config(file_path: str) -> Dict[str, Any]:
-        """Load server configuration from JSON file.
+        """Load server configuration from a JSON file.
 
         Args:
             file_path: Path to the JSON configuration file.
@@ -63,10 +63,10 @@ class Configuration:
             Dict containing server configuration.
 
         Raises:
-            FileNotFoundError: If configuration file doesn't exist.
-            JSONDecodeError: If configuration file is invalid JSON.
+            FileNotFoundError: If the configuration file doesn't exist.
+            JSONDecodeError: If the configuration file is invalid JSON.
         """
-        with open(file_path, 'r') as f:
+        with open(file_path) as f:
             return json.load(f)
 
     @property
@@ -155,7 +155,7 @@ class Server:
         retries: int = 2,
         delay: float = 1.0
     ) -> Any:
-        """Execute a tool with retry mechanism.
+        """Execute a tool with a retry mechanism.
 
         Args:
             tool_name: Name of the tool to execute.
@@ -203,6 +203,8 @@ class Server:
                 else:
                     logging.error("Max retries reached. Failing.")
                     raise
+        return None
+
 
     async def cleanup(self) -> None:
         """Clean up server resources."""
@@ -251,53 +253,76 @@ class Tool:
                     arg_desc += " (required)"
                 args_desc.append(arg_desc)
 
+        args_section = chr(10).join(args_desc) if args_desc else "No arguments"
+        
         return f"""
 Tool: {self.name}
 Description: {self.description}
 Arguments:
-{chr(10).join(args_desc)}
+{args_section}
 """
 
 
 class LLMClient:
     """Manages communication with the LLM provider."""
 
-    def __init__(self, api_key: str, provider: str, base_url: str, model: str, azure_api_version: str = "2024-08-01-preview") -> None:
+    def __init__(self, api_key: str, provider: str, base_url: str, model: str, azure_api_version: str = "") -> None:
         self.api_key = (api_key or "").strip()
         self.provider = provider.strip().lower()
         self.base_url = base_url.rstrip("/")
         self.model = model
-        self.azure_api_version = azure_api_version
+        self.azure_api_version = azure_api_version if azure_api_version else "2024-08-01-preview"
+
+    def _is_reasoning_model(self) -> bool:
+        """Check if the current model is a reasoning model (o1/o3 series)."""
+        reasoning_models = ['o1-mini', 'o1-preview', 'o3-mini', 'o3-preview']
+        return any(reasoning in self.model.lower() for reasoning in reasoning_models)
 
     def get_response(self, messages: List[Dict[str, str]]) -> str:
         """Get a response from the LLM."""
         provider = self.provider
+        is_reasoning = self._is_reasoning_model()
+        
         if provider in ("openai", "groq", "ollama"):
             url = f"{self.base_url}/chat/completions"
             headers = {"Content-Type": "application/json"}
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
-            payload = {
+            
+            payload: Dict[str, Any] = {
                 "messages": messages,
                 "model": self.model,
-                "temperature": 0.7,
-                "max_tokens": 1024,
                 "top_p": 1,
                 "stream": False,
             }
+            
+            # Reasoning models require temperature=1 and max_completion_tokens
+            if is_reasoning:
+                payload["temperature"] = 1
+                payload["max_completion_tokens"] = 1024
+            else:
+                payload["temperature"] = 0.7
+                payload["max_tokens"] = 1024
+                
         elif provider == "azure":
             url = f"{self.base_url}/openai/deployments/{self.model}/chat/completions?api-version={self.azure_api_version}"
             headers = {
                 "Content-Type": "application/json",
                 "api-key": self.api_key,
             }
-            payload = {
+            payload: Dict[str, Any] = {
                 "messages": messages,
-                "temperature": 0.7,
-                "max_tokens": 1024,
                 "top_p": 1,
                 "stream": False,
             }
+            
+            # Reasoning models require temperature=1 and max_completion_tokens
+            if is_reasoning:
+                payload["temperature"] = 1
+                payload["max_completion_tokens"] = 1024
+            else:
+                payload["temperature"] = 0.7
+                payload["max_tokens"] = 1024
         else:
             raise ValueError(f"Unsupported provider: {provider}")
 
